@@ -5,7 +5,7 @@ ti.init(arch=ti.gpu, debug=True)
 vec = ti.math.vec2
 
 bsize = 1200  # Window size
-n = 4096 * 4  # Number of grains
+n = 4096 * 8  # Number of grains
 # n = 4096
 density = 1000.0
 stiffness = 4e7
@@ -136,6 +136,7 @@ def contact(gf: ti.template()):
     for i in range(1, grid_n):
         prefix_sum[i, 0] = prefix_sum[i - 1, 0] + column_sum[i - 1]
 
+    index_current_pos[0] = 0
     for i in range(grid_n):
         for j in range(grid_n):
             if j > 0:
@@ -170,7 +171,7 @@ def contact(gf: ti.template()):
                 for p_idx in range(index_pos[neigh_linear_idx],
                                    index_pos[neigh_linear_idx + 1]):
                     j = particle_id[p_idx]
-                    if i < j:
+                    if i != j:
                         resolve(i, j)
 
 
