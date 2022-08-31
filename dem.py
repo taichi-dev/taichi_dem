@@ -5,8 +5,8 @@ ti.init(arch=ti.gpu, debug=True)
 vec = ti.math.vec2
 
 bsize = 1200  # Window size
-# n = 4096 * 4  # Number of grains
-n = 4096
+n = 4096 * 4  # Number of grains
+# n = 4096
 density = 1000.0
 stiffness = 4e7
 restitution_coef = 0.1
@@ -150,9 +150,28 @@ def contact(gf: ti.template()):
         particle_id[grain_location] = i
 
     # Brute-force traversing
+    '''
     for i in range(n):
         for j in range(i + 1, n):
             resolve(i, j)
+    '''
+
+    for i in range(n):
+        grid_idx = ti.floor(gf[i].p * (bsize / grid_size), int)
+        x_begin = max(grid_idx[0] - 1, 0)
+        x_end = min(grid_idx[0] + 2, grid_n)
+
+        y_begin = max(grid_idx[1] - 1, 0)
+        y_end = min(grid_idx[1] + 2, grid_n)
+
+        for neigh_i in range(x_begin, x_end):
+            for neigh_j in range(y_begin, y_end):
+                neigh_linear_idx = neigh_i * grid_n + neigh_j
+                for p_idx in range(index_pos[neigh_linear_idx],
+                                   index_pos[neigh_linear_idx + 1]):
+                    j = particle_id[p_idx]
+                    if i < j:
+                        resolve(i, j)
 
 
 init()
