@@ -5,7 +5,7 @@ ti.init(arch=ti.gpu)
 vec = ti.math.vec2
 
 bsize = 1280  # Window size
-n = 4096  # Number of grains
+n = 4096 * 4  # Number of grains
 density = 1000.0
 stiffness = 4e7
 restitution_coef = 0.1
@@ -26,15 +26,17 @@ class Grain:
 
 gf = Grain.field(shape=(n, ))
 
+grid_size = 6
+
 
 @ti.kernel
 def init():
     for i in gf:
         # Spread grains in a restricted area.
-        l = i * 18
+        l = i * grid_size
         padding = 100
         block = bsize - padding
-        offset = vec(l % block + padding / 2, l // block * 20 + padding)
+        offset = vec(l % block + padding / 2, l // block * grid_size + padding)
         offset /= bsize
         gf[i].p = vec(0, 0) + offset
         gf[i].r = ti.random() * 2 + 1
@@ -74,6 +76,27 @@ def apply_bc():
             gf[i].v[0] *= -bounce_coef
 
 
+@ti.func
+def resolve(i, j):
+    rel_pos = (gf[j].p - gf[i].p) * bsize
+    dist = ti.sqrt(rel_pos[0]**2 + rel_pos[1]**2)
+    delta = -dist + gf[i].r + gf[j].r  # delta = d - 2 * r
+    if delta > 0:  # in contact
+        normal = rel_pos / dist
+        f1 = normal * delta * stiffness
+        gf[i].f -= f1
+        gf[j].f += f1
+        # Damping force
+        M = (gf[i].m * gf[j].m) / (gf[i].m + gf[j].m)
+        K = stiffness
+        C = 2. * (1. / ti.sqrt(1. + (math.pi / ti.log(restitution_coef))**2)
+                  ) * ti.sqrt(K * M)
+        V = (gf[j].v - gf[i].v) * normal
+        f2 = C * V * normal
+        gf[i].f += f2
+        gf[j].f -= f2
+
+
 @ti.kernel
 def contact(gf: ti.template()):
     '''
@@ -85,24 +108,7 @@ def contact(gf: ti.template()):
     # Brute-force traversing
     for i in range(n):
         for j in range(i + 1, n):
-            rel_pos = (gf[j].p - gf[i].p) * bsize
-            dist = ti.sqrt(rel_pos[0]**2 + rel_pos[1]**2)
-            delta = -dist + gf[i].r + gf[j].r  # delta = d - 2 * r
-            if delta > 0:  # in contact
-                normal = rel_pos / dist
-                f1 = normal * delta * stiffness
-                gf[i].f -= f1
-                gf[j].f += f1
-                # Damping force
-                M = (gf[i].m * gf[j].m) / (gf[i].m + gf[j].m)
-                K = stiffness
-                C = 2. * (1. / ti.sqrt(1. +
-                                       (math.pi / ti.log(restitution_coef))**2)
-                          ) * ti.sqrt(K * M)
-                V = (gf[j].v - gf[i].v) * normal
-                f2 = C * V * normal
-                gf[i].f += f2
-                gf[j].f -= f2
+            resolve(i, j)
 
 
 init()
