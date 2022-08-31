@@ -1,11 +1,12 @@
 import taichi as ti
 import math
 
-ti.init(arch=ti.gpu)
+ti.init(arch=ti.gpu, debug=True)
 vec = ti.math.vec2
 
-bsize = 1280  # Window size
-n = 4096 * 4  # Number of grains
+bsize = 1200  # Window size
+# n = 4096 * 4  # Number of grains
+n = 4096
 density = 1000.0
 stiffness = 4e7
 restitution_coef = 0.1
@@ -27,6 +28,9 @@ class Grain:
 gf = Grain.field(shape=(n, ))
 
 grid_size = 6
+assert bsize % grid_size == 0
+grid_n = bsize // grid_size
+print(f"Grid size: {grid_n}x{grid_n}")
 
 
 @ti.kernel
@@ -97,6 +101,17 @@ def resolve(i, j):
         gf[j].f -= f2
 
 
+index_pos = ti.field(dtype=ti.i32, shape=grid_n * grid_n + 1)
+index_current_pos = ti.field(dtype=ti.i32, shape=grid_n * grid_n + 1)
+
+grain_count = ti.field(dtype=ti.i32,
+                       shape=(grid_n, grid_n),
+                       name="grain_count")
+column_sum = ti.field(dtype=ti.i32, shape=grid_n, name="column_sum")
+prefix_sum = ti.field(dtype=ti.i32, shape=(grid_n, grid_n), name="prefix_sum")
+particle_id = ti.field(dtype=ti.i32, shape=n, name="particle_id")
+
+
 @ti.kernel
 def contact(gf: ti.template()):
     '''
@@ -104,6 +119,35 @@ def contact(gf: ti.template()):
     '''
     for i in gf:
         gf[i].f = vec(0., gravity * gf[i].m)  # Apply gravity.
+
+    grain_count.fill(0)
+
+    for i in range(n):
+        grid_idx = ti.floor(gf[i].p * (bsize / grid_size), int)
+        grain_count[grid_idx] += 1
+
+    for i in range(grid_n):
+        sum = 0
+        for j in range(grid_n):
+            sum += grain_count[i, j]
+        column_sum[i] = sum
+
+    ti.loop_config(serialize=True)
+    for i in range(1, grid_n):
+        prefix_sum[i, 0] = prefix_sum[i - 1, 0] + column_sum[i - 1]
+
+    for i in range(grid_n):
+        for j in range(grid_n):
+            if j > 0:
+                prefix_sum[i, j] = prefix_sum[i, j - 1] + grain_count[i, j]
+            index_pos[i * grid_n + j + 1] = prefix_sum[i, j]
+            index_current_pos[i * grid_n + j + 1] = prefix_sum[i, j]
+
+    for i in range(n):
+        grid_idx = ti.floor(gf[i].p * (bsize / grid_size), int)
+        linear_idx = grid_idx[0] * grid_n + grid_idx[1]
+        grain_location = ti.atomic_add(index_current_pos[linear_idx], 1)
+        particle_id[grain_location] = i
 
     # Brute-force traversing
     for i in range(n):
@@ -122,3 +166,6 @@ while gui.running:
     r = gf.r.to_numpy()
     gui.circles(pos, radius=r)
     gui.show()
+
+# TODO: angular momentum
+# TODO: use simulation domain [0, 1] instead of [0, bsize]
