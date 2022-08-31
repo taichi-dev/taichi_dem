@@ -99,9 +99,9 @@ def resolve(i, j):
         gf[j].f -= f2 - f1
 
 
-index_pos = ti.field(dtype=ti.i32, shape=grid_n * grid_n + 1)
-index_pos_gt = ti.field(dtype=ti.i32, shape=grid_n * grid_n + 1)
-index_current_pos = ti.field(dtype=ti.i32, shape=grid_n * grid_n + 1)
+list_head = ti.field(dtype=ti.i32, shape=grid_n * grid_n)
+list_cur = ti.field(dtype=ti.i32, shape=grid_n * grid_n)
+list_tail = ti.field(dtype=ti.i32, shape=grid_n * grid_n)
 
 grain_count = ti.field(dtype=ti.i32,
                        shape=(grid_n, grid_n),
@@ -136,20 +136,23 @@ def contact(gf: ti.template()):
     for i in range(1, grid_n):
         prefix_sum[i, 0] = prefix_sum[i - 1, 0] + column_sum[i - 1]
 
-    index_current_pos[0] = 0
     for i in range(grid_n):
         for j in range(grid_n):
             if j == 0:
                 prefix_sum[i, j] += grain_count[i, j]
             else:
                 prefix_sum[i, j] = prefix_sum[i, j - 1] + grain_count[i, j]
-            index_pos[i * grid_n + j + 1] = prefix_sum[i, j]
-            index_current_pos[i * grid_n + j + 1] = prefix_sum[i, j]
+
+            linear_idx = i * grid_n + j
+
+            list_head[linear_idx] = prefix_sum[i, j] - grain_count[i, j]
+            list_cur[linear_idx] = list_head[linear_idx]
+            list_tail[linear_idx] = prefix_sum[i, j]
 
     for i in range(n):
         grid_idx = ti.floor(gf[i].p * (bsize / grid_size), int)
         linear_idx = grid_idx[0] * grid_n + grid_idx[1]
-        grain_location = ti.atomic_add(index_current_pos[linear_idx], 1)
+        grain_location = ti.atomic_add(list_cur[linear_idx], 1)
         particle_id[grain_location] = i
 
     # Brute-force collision detection
@@ -171,8 +174,8 @@ def contact(gf: ti.template()):
         for neigh_i in range(x_begin, x_end):
             for neigh_j in range(y_begin, y_end):
                 neigh_linear_idx = neigh_i * grid_n + neigh_j
-                for p_idx in range(index_pos[neigh_linear_idx],
-                                   index_pos[neigh_linear_idx + 1]):
+                for p_idx in range(list_head[neigh_linear_idx],
+                                   list_tail[neigh_linear_idx]):
                     j = particle_id[p_idx]
                     if i < j:
                         resolve(i, j)
