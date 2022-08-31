@@ -1,12 +1,12 @@
 import taichi as ti
 import math
 
-ti.init(arch=ti.cpu)
+ti.init(arch=ti.gpu)
 vec = ti.math.vec2
 
 bsize = 1200  # Window size
 n = 4096 * 8  # Number of grains
-# n = 1024
+
 density = 1000.0
 stiffness = 4e7
 restitution_coef = 0.1
@@ -152,13 +152,14 @@ def contact(gf: ti.template()):
         grain_location = ti.atomic_add(index_current_pos[linear_idx], 1)
         particle_id[grain_location] = i
 
-    # Brute-force traversing
+    # Brute-force collision detection
     '''
     for i in range(n):
         for j in range(i + 1, n):
             resolve(i, j)
     '''
 
+    # Fast collision detection
     for i in range(n):
         grid_idx = ti.floor(gf[i].p * (bsize / grid_size), int)
         x_begin = max(grid_idx[0] - 1, 0)
