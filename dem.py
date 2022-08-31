@@ -5,13 +5,13 @@ ti.init(arch=ti.gpu)
 vec = ti.math.vec2
 
 bsize = 1280  # Window size
-n = 2048  # Number of grains
+n = 4096  # Number of grains
 density = 1000.0
-stiffness = 1e7
+stiffness = 4e7
 restitution_coef = 0.1
 gravity = -9.81
-dt = 0.0003  # Larger dt might lead to unstable results.
-substeps = 30
+dt = 0.0002  # Larger dt might lead to unstable results.
+substeps = 50
 
 
 @ti.dataclass
@@ -37,7 +37,7 @@ def init():
         offset = vec(l % block + padding / 2, l // block * 20 + padding)
         offset /= bsize
         gf[i].p = vec(0, 0) + offset
-        gf[i].r = ti.random() * 8 + 3
+        gf[i].r = ti.random() * 2 + 1
         gf[i].m = density * 2 * math.pi * gf[i].r
 
 
@@ -52,7 +52,7 @@ def update():
 
 @ti.kernel
 def apply_bc():
-    bounce_coef = 0.6  # Velocity damping
+    bounce_coef = 0.3  # Velocity damping
     for i in gf:
         x = gf[i].p[0] * bsize
         y = gf[i].p[1] * bsize
@@ -83,8 +83,8 @@ def contact(gf: ti.template()):
         gf[i].f = vec(0., gravity * gf[i].m)  # Apply gravity.
 
     # Brute-force traversing
-    for i, j in ti.ndrange(n, n):
-        if i != j:
+    for i in range(n):
+        for j in range(i + 1, n):
             rel_pos = (gf[j].p - gf[i].p) * bsize
             dist = ti.sqrt(rel_pos[0]**2 + rel_pos[1]**2)
             delta = -dist + gf[i].r + gf[j].r  # delta = d - 2 * r
