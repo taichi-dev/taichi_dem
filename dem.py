@@ -88,8 +88,6 @@ def resolve(i, j):
     if delta > 0:  # in contact
         normal = rel_pos / dist
         f1 = normal * delta * stiffness
-        gf[i].f -= f1
-        gf[j].f += f1
         # Damping force
         M = (gf[i].m * gf[j].m) / (gf[i].m + gf[j].m)
         K = stiffness
@@ -97,8 +95,8 @@ def resolve(i, j):
                   ) * ti.sqrt(K * M)
         V = (gf[j].v - gf[i].v) * normal
         f2 = C * V * normal
-        gf[i].f += f2
-        gf[j].f -= f2
+        gf[i].f += f2 - f1
+        gf[j].f -= f2 - f1
 
 
 index_pos = ti.field(dtype=ti.i32, shape=grid_n * grid_n + 1)
@@ -133,8 +131,6 @@ def contact(gf: ti.template()):
             sum += grain_count[i, j]
         column_sum[i] = sum
 
-    # print(column_sum[0], grain_count[1, 0])
-
     ti.loop_config(serialize=True)
     prefix_sum[0, 0] = 0
     for i in range(1, grid_n):
@@ -149,22 +145,6 @@ def contact(gf: ti.template()):
                 prefix_sum[i, j] = prefix_sum[i, j - 1] + grain_count[i, j]
             index_pos[i * grid_n + j + 1] = prefix_sum[i, j]
             index_current_pos[i * grid_n + j + 1] = prefix_sum[i, j]
-
-            # ti.loop_config(serialize=True)
-            # for i in range(grid_n):
-            #     for j in range(grid_n):
-            #         index_pos_gt[i * grid_n + j +
-            #                      1] = index_pos_gt[i * grid_n + j] + grain_count[i, j]
-            # assert index_pos_gt[i * grid_n + j + 1] == prefix_sum[i, j], f"{i}, {j}, {prefix_sum[i, j]}, { index_pos_gt[i * grid_n + j + 1]}"
-            '''
-            assert index_pos_gt[i * grid_n + j] == index_pos[
-                i * grid_n +
-                j], f"{i}, {j}, {index_pos_gt[i * grid_n + j]}, {index_pos[i * grid_n + j]}"
-            '''
-
-    # for i in range(grid_n * grid_n + 1):
-    #     index_pos[i] = index_pos_gt[i]
-    #     index_current_pos[i] = index_pos_gt[i]
 
     for i in range(n):
         grid_idx = ti.floor(gf[i].p * (bsize / grid_size), int)
