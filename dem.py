@@ -1,18 +1,18 @@
 import taichi as ti
 import math
 
-ti.init(arch=ti.gpu, debug=True)
+ti.init(arch=ti.cpu)
 vec = ti.math.vec2
 
 bsize = 1200  # Window size
 n = 4096 * 8  # Number of grains
-# n = 4096
+# n = 1024
 density = 1000.0
 stiffness = 4e7
 restitution_coef = 0.1
 gravity = -9.81
 dt = 0.0002  # Larger dt might lead to unstable results.
-substeps = 50
+substeps = 30
 
 
 @ti.dataclass
@@ -43,7 +43,7 @@ def init():
         offset = vec(l % block + padding / 2, l // block * grid_size + padding)
         offset /= bsize
         gf[i].p = vec(0, 0) + offset
-        gf[i].r = ti.random() * 2 + 1
+        gf[i].r = ti.random() * 1 + 1.5
         gf[i].m = density * 2 * math.pi * gf[i].r
 
 
@@ -102,6 +102,7 @@ def resolve(i, j):
 
 
 index_pos = ti.field(dtype=ti.i32, shape=grid_n * grid_n + 1)
+index_pos_gt = ti.field(dtype=ti.i32, shape=grid_n * grid_n + 1)
 index_current_pos = ti.field(dtype=ti.i32, shape=grid_n * grid_n + 1)
 
 grain_count = ti.field(dtype=ti.i32,
@@ -132,17 +133,38 @@ def contact(gf: ti.template()):
             sum += grain_count[i, j]
         column_sum[i] = sum
 
+    # print(column_sum[0], grain_count[1, 0])
+
     ti.loop_config(serialize=True)
+    prefix_sum[0, 0] = 0
     for i in range(1, grid_n):
         prefix_sum[i, 0] = prefix_sum[i - 1, 0] + column_sum[i - 1]
 
     index_current_pos[0] = 0
     for i in range(grid_n):
         for j in range(grid_n):
-            if j > 0:
+            if j == 0:
+                prefix_sum[i, j] += grain_count[i, j]
+            else:
                 prefix_sum[i, j] = prefix_sum[i, j - 1] + grain_count[i, j]
             index_pos[i * grid_n + j + 1] = prefix_sum[i, j]
             index_current_pos[i * grid_n + j + 1] = prefix_sum[i, j]
+
+            # ti.loop_config(serialize=True)
+            # for i in range(grid_n):
+            #     for j in range(grid_n):
+            #         index_pos_gt[i * grid_n + j +
+            #                      1] = index_pos_gt[i * grid_n + j] + grain_count[i, j]
+            # assert index_pos_gt[i * grid_n + j + 1] == prefix_sum[i, j], f"{i}, {j}, {prefix_sum[i, j]}, { index_pos_gt[i * grid_n + j + 1]}"
+            '''
+            assert index_pos_gt[i * grid_n + j] == index_pos[
+                i * grid_n +
+                j], f"{i}, {j}, {index_pos_gt[i * grid_n + j]}, {index_pos[i * grid_n + j]}"
+            '''
+
+    # for i in range(grid_n * grid_n + 1):
+    #     index_pos[i] = index_pos_gt[i]
+    #     index_current_pos[i] = index_pos_gt[i]
 
     for i in range(n):
         grid_idx = ti.floor(gf[i].p * (bsize / grid_size), int)
@@ -171,7 +193,7 @@ def contact(gf: ti.template()):
                 for p_idx in range(index_pos[neigh_linear_idx],
                                    index_pos[neigh_linear_idx + 1]):
                     j = particle_id[p_idx]
-                    if i != j:
+                    if i < j:
                         resolve(i, j)
 
 
