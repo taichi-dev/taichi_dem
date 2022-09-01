@@ -131,8 +131,9 @@ def contact(gf: ti.template()):
             sum += grain_count[i, j]
         column_sum[i] = sum
 
-    ti.loop_config(serialize=True)
     prefix_sum[0, 0] = 0
+
+    ti.loop_config(serialize=True)
     for i in range(1, grid_n):
         prefix_sum[i, 0] = prefix_sum[i - 1, 0] + column_sum[i - 1]
 
@@ -171,6 +172,7 @@ def contact(gf: ti.template()):
         y_begin = max(grid_idx[1] - 1, 0)
         y_end = min(grid_idx[1] + 2, grid_n)
 
+        # TODO: ideally we only need to enumerate half of the 3x3 grid cells
         for neigh_i in range(x_begin, x_end):
             for neigh_j in range(y_begin, y_end):
                 neigh_linear_idx = neigh_i * grid_n + neigh_j
