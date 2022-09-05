@@ -4,13 +4,13 @@ import math
 ti.init(arch=ti.gpu)
 vec = ti.math.vec2
 
-bsize = 1200  # Window size
+bsize = 512   # Number of pixels of the window
 n = 4096 * 8  # Number of grains
 
 density = 1000.0
 stiffness = 4e7
 restitution_coef = 0.1
-gravity = -9.81
+gravity = - 9.81
 dt = 0.0002  # Larger dt might lead to unstable results.
 substeps = 30
 
@@ -27,9 +27,8 @@ class Grain:
 
 gf = Grain.field(shape=(n, ))
 
-grid_size = 6
-assert bsize % grid_size == 0
-grid_n = bsize // grid_size
+grid_n = 200
+grid_size = 1.0 / grid_n # Simulation domain of [0, 1]
 print(f"Grid size: {grid_n}x{grid_n}")
 
 
@@ -38,12 +37,11 @@ def init():
     for i in gf:
         # Spread grains in a restricted area.
         l = i * grid_size
-        padding = 100
-        block = bsize - padding
+        padding = 0.05
+        block = 1.0 - padding
         offset = vec(l % block + padding / 2, l // block * grid_size + padding)
-        offset /= bsize
         gf[i].p = vec(0, 0) + offset
-        gf[i].r = ti.random() * 1 + 1.5
+        gf[i].r = ti.random() * 1.0e-3 + 1.5e-3
         gf[i].m = density * 2 * math.pi * gf[i].r
 
 
@@ -60,29 +58,29 @@ def update():
 def apply_bc():
     bounce_coef = 0.3  # Velocity damping
     for i in gf:
-        x = gf[i].p[0] * bsize
-        y = gf[i].p[1] * bsize
+        x = gf[i].p[0]
+        y = gf[i].p[1]
 
         if y - gf[i].r < 0:
-            gf[i].p[1] = gf[i].r / bsize
+            gf[i].p[1] = gf[i].r
             gf[i].v[1] *= -bounce_coef
 
-        elif y + gf[i].r > bsize:
-            gf[i].p[1] = (bsize - gf[i].r) / bsize
+        elif y + gf[i].r > 1.0:
+            gf[i].p[1] = 1.0 - gf[i].r
             gf[i].v[1] *= -bounce_coef
 
         if x - gf[i].r < 0:
-            gf[i].p[0] = gf[i].r / bsize
+            gf[i].p[0] = gf[i].r
             gf[i].v[0] *= -bounce_coef
 
-        elif x + gf[i].r > bsize:
-            gf[i].p[0] = (bsize - gf[i].r) / bsize
+        elif x + gf[i].r > 1.0:
+            gf[i].p[0] = 1.0 - gf[i].r
             gf[i].v[0] *= -bounce_coef
 
 
 @ti.func
 def resolve(i, j):
-    rel_pos = (gf[j].p - gf[i].p) * bsize
+    rel_pos = gf[j].p - gf[i].p
     dist = ti.sqrt(rel_pos[0]**2 + rel_pos[1]**2)
     delta = -dist + gf[i].r + gf[j].r  # delta = d - 2 * r
     if delta > 0:  # in contact
@@ -122,7 +120,7 @@ def contact(gf: ti.template()):
     grain_count.fill(0)
 
     for i in range(n):
-        grid_idx = ti.floor(gf[i].p * (bsize / grid_size), int)
+        grid_idx = ti.floor(gf[i].p * grid_n, int)
         grain_count[grid_idx] += 1
 
     for i in range(grid_n):
@@ -151,7 +149,7 @@ def contact(gf: ti.template()):
             list_tail[linear_idx] = prefix_sum[i, j]
 
     for i in range(n):
-        grid_idx = ti.floor(gf[i].p * (bsize / grid_size), int)
+        grid_idx = ti.floor(gf[i].p * grid_n, int)
         linear_idx = grid_idx[0] * grid_n + grid_idx[1]
         grain_location = ti.atomic_add(list_cur[linear_idx], 1)
         particle_id[grain_location] = i
@@ -165,7 +163,7 @@ def contact(gf: ti.template()):
 
     # Fast collision detection
     for i in range(n):
-        grid_idx = ti.floor(gf[i].p * (bsize / grid_size), int)
+        grid_idx = ti.floor(gf[i].p * grid_n, int)
         x_begin = max(grid_idx[0] - 1, 0)
         x_end = min(grid_idx[0] + 2, grid_n)
 
@@ -191,9 +189,8 @@ while gui.running:
         apply_bc()
         contact(gf)
     pos = gf.p.to_numpy()
-    r = gf.r.to_numpy()
+    r = gf.r.to_numpy() * bsize
     gui.circles(pos, radius=r)
     gui.show()
 
 # TODO: angular momentum
-# TODO: use simulation domain [0, 1] instead of [0, bsize]
