@@ -1,18 +1,22 @@
+import os
+
 import taichi as ti
 import math
+
+SAVE_FRAMES = True
 
 ti.init(arch=ti.gpu)
 vec = ti.math.vec2
 
-bsize = 512   # Number of pixels of the window
-n = 4096 * 8  # Number of grains
+window_size = 1024  # Number of pixels of the window
+n = 8192  # Number of grains
 
-density = 1000.0
-stiffness = 4e7
-restitution_coef = 0.1
-gravity = - 9.81
-dt = 0.0002  # Larger dt might lead to unstable results.
-substeps = 30
+density = 100.0
+stiffness = 8e3
+restitution_coef = 0.001
+gravity = -9.81
+dt = 0.0001  # Larger dt might lead to unstable results.
+substeps = 60
 
 
 @ti.dataclass
@@ -27,9 +31,14 @@ class Grain:
 
 gf = Grain.field(shape=(n, ))
 
-grid_n = 200
-grid_size = 1.0 / grid_n # Simulation domain of [0, 1]
+grid_n = 128
+grid_size = 1.0 / grid_n  # Simulation domain of size [0, 1]
 print(f"Grid size: {grid_n}x{grid_n}")
+
+grain_r_min = 0.002
+grain_r_max = 0.003
+
+assert grain_r_max * 2 < grid_size
 
 
 @ti.kernel
@@ -37,12 +46,13 @@ def init():
     for i in gf:
         # Spread grains in a restricted area.
         l = i * grid_size
-        padding = 0.05
-        block = 1.0 - padding
-        offset = vec(l % block + padding / 2, l // block * grid_size + padding)
-        gf[i].p = vec(0, 0) + offset
-        gf[i].r = ti.random() * 1.0e-3 + 1.5e-3
-        gf[i].m = density * 2 * math.pi * gf[i].r
+        padding = 0.1
+        region_width = 1.0 - padding * 2
+        pos = vec(l % region_width + padding + grid_size * ti.random() * 0.2,
+                  l // region_width * grid_size + 0.3)
+        gf[i].p = pos
+        gf[i].r = ti.random() * (grain_r_max - grain_r_min) + grain_r_min
+        gf[i].m = density * math.pi * gf[i].r**2
 
 
 @ti.kernel
@@ -170,7 +180,6 @@ def contact(gf: ti.template()):
         y_begin = max(grid_idx[1] - 1, 0)
         y_end = min(grid_idx[1] + 2, grid_n)
 
-        # TODO: ideally we only need to enumerate half of the 3x3 grid cells
         for neigh_i in range(x_begin, x_end):
             for neigh_j in range(y_begin, y_end):
                 neigh_linear_idx = neigh_i * grid_n + neigh_j
@@ -182,15 +191,22 @@ def contact(gf: ti.template()):
 
 
 init()
-gui = ti.GUI('Taichi DEM', (bsize, bsize))
+gui = ti.GUI('Taichi DEM', (window_size, window_size))
+step = 0
+
+if SAVE_FRAMES:
+    os.makedirs('output', exist_ok=True)
+
 while gui.running:
     for s in range(substeps):
         update()
         apply_bc()
         contact(gf)
     pos = gf.p.to_numpy()
-    r = gf.r.to_numpy() * bsize
+    r = gf.r.to_numpy() * window_size
     gui.circles(pos, radius=r)
-    gui.show()
-
-# TODO: angular momentum
+    if SAVE_FRAMES:
+        gui.show(f'output/{step:06d}.png')
+    else:
+        gui.show()
+    step += 1
