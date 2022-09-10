@@ -1,12 +1,11 @@
-import os
-
 import taichi as ti
 import math
-
-SAVE_FRAMES = True
+import os
 
 ti.init(arch=ti.gpu)
 vec = ti.math.vec2
+
+SAVE_FRAMES = False
 
 window_size = 1024  # Number of pixels of the window
 n = 8192  # Number of grains
