@@ -128,7 +128,7 @@ list_tail = ti.field(dtype=ti.i32, shape=grid_n * grid_n * grid_n)
 grain_count = ti.field(dtype=ti.i32,
                        shape=(grid_n, grid_n, grid_n),
                        name="grain_count")
-column_sum = ti.field(dtype=ti.i32, shape=grid_n, name="column_sum")
+column_sum = ti.field(dtype=ti.i32, shape=(grid_n, grid_n), name="column_sum")
 prefix_sum = ti.field(dtype=ti.i32, shape=(grid_n, grid_n, grid_n), name="prefix_sum")
 particle_id = ti.field(dtype=ti.i32, shape=n, name="particle_id")
 
@@ -154,33 +154,33 @@ def contact(gf: ti.template()):
         grid_idx = ti.floor(gf[i].p * grid_n, int)
         grain_count[grid_idx] += 1
 
-    for i in range(grid_n):
+    for i, j in ti.ndrange(grid_n, grid_n):
         #   serialize only below first level
-        sum = 0
-        for j in range(grid_n):            
-            for k in range(grid_n):
-                sum += grain_count[i, j, k]
-                column_sum[i] = sum
+        sum = 0          
+        for k in range(grid_n):
+            sum += grain_count[i, j, k]
+        column_sum[i, j] = sum
 
     prefix_sum[0, 0, 0] = 0
 
     ti.loop_config(serialize=True)
     for i in range(1, grid_n):
-        prefix_sum[i, 0, 0] = prefix_sum[i - 1, 0, 0] + column_sum[i - 1]
+        prefix_sum[i, 0, 0] = prefix_sum[i - 1, 0, 0] + column_sum[i - 1, 0]
+        for j in range(1, grid_n):
+            prefix_sum[i, j, 0] = prefix_sum[i, j - 1, 0] + column_sum[i, j - 1]
     
-    for i in range(grid_n):
-        for j in range(grid_n):
-            for k in range(grid_n):
-                if j == 0 and k == 0:
-                    prefix_sum[i, j, k] += grain_count[i, j, k]
-                else:
-                    prefix_sum[i, j, k] = prefix_sum[i, j - 1, k] + grain_count[i, j, k]
+    for i, j in ti.ndrange(grid_n, grid_n):
+        for k in range(grid_n):
+            if k == 0:
+                prefix_sum[i, j, k] += grain_count[i, j, k]
+            else:
+                prefix_sum[i, j, k] = prefix_sum[i, j - 1, k] + grain_count[i, j, k]
 
-                linear_idx = i * grid_n * grid_n + j * grid_n + k
+            linear_idx = i * grid_n * grid_n + j * grid_n + k
 
-                list_head[linear_idx] = prefix_sum[i, j, k] - grain_count[i, j, k]
-                list_cur[linear_idx] = list_head[linear_idx]
-                list_tail[linear_idx] = prefix_sum[i, j, k]
+            list_head[linear_idx] = prefix_sum[i, j, k] - grain_count[i, j, k]
+            list_cur[linear_idx] = list_head[linear_idx]
+            list_tail[linear_idx] = prefix_sum[i, j, k]
 
     for i in range(n):
         grid_idx = ti.floor(gf[i].p * grid_n, int)
@@ -201,15 +201,13 @@ def contact(gf: ti.template()):
         z_begin = max(grid_idx[2] - 1, 0)
         z_end = min(grid_idx[2] + 2, grid_n)
 
-        for neigh_i in range(x_begin, x_end):
-            for neigh_j in range(y_begin, y_end):
-                for neigh_k in range(z_begin, z_end):
-                    neigh_linear_idx = neigh_k * grid_n * grid_n + neigh_i * grid_n + neigh_j
-                    for p_idx in range(list_head[neigh_linear_idx],
-                                    list_tail[neigh_linear_idx]):
-                        j = particle_id[p_idx]
-                        if i < j:
-                            resolve(i, j)
+        for neigh_i, neigh_j, neigh_k in ti.ndrange((x_begin,x_end),(y_begin,y_end),(z_begin,z_end)):
+            neigh_linear_idx = neigh_k * grid_n * grid_n + neigh_i * grid_n + neigh_j
+            for p_idx in range(list_head[neigh_linear_idx],
+                            list_tail[neigh_linear_idx]):
+                j = particle_id[p_idx]
+                if i < j:
+                    resolve(i, j)
 
 
 init()
