@@ -56,11 +56,11 @@ def init():
         l = sq * grid_size       
         
         # sorted array
-        #pos = vec(l // region_width * grid_size, h * grid_size * 2, l % region_width + padding)
+        pos = vec(l // region_width * grid_size, h * grid_size * 2, l % region_width + padding)
         #pos = vec(l // region_width * grid_size, h * grid_size * 2, l % region_width + padding + grid_size * ti.random() * 0.2)
 
         #  all random 
-        pos = vec(ti.random() * 0.3,  ti.random() * 0.3, ti.random() * 0.3)
+        #pos = vec(0.5 + ti.random() * 0.5,  ti.random() * 0.5, ti.random() * 0.5)
 
         gf[i].p = pos
         #gf[i].r = ti.random() * (grain_r_max - grain_r_min) + grain_r_min
