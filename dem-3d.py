@@ -169,6 +169,7 @@ def contact(gf: ti.template()):
         #prefix_sum[i, j, 0] = ti.atomic_add(_prefix_sum_cur, column_sum[i, j])
     
     """
+    # case 1 ok
     for i, j in ti.ndrange(grid_n, grid_n):
         #print(i, j ,k)
         for k in range(grid_n):
@@ -183,6 +184,7 @@ def contact(gf: ti.template()):
     
 
     #"""
+    # case 2 wrong
     for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):
         #print(i, j ,k)        
         ti.atomic_add(_column_sum_cur[i,j], grain_count[i, j, k])    
