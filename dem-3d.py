@@ -39,7 +39,7 @@ print(f"Grid size: {grid_n}x{grid_n}")
 grain_r_min = 0.002
 grain_r_max = 0.003
 """
-grain_r = 0.002
+grain_r = 0.005
 assert grain_r * 2 < grid_size
 
 region_height = n / 10
@@ -164,34 +164,37 @@ def contact(gf: ti.template()):
     # this is because memory mapping can be out of order
     _prefix_sum_cur = 0
     
-    for i, j in ti.ndrange((0, grid_n),(0, grid_n)):
-       # _column_sum_cur[i,j] = prefix_sum[i, j, 0] = ti.atomic_add(_prefix_sum_cur, column_sum[i, j])
-        prefix_sum[i, j, 0] = ti.atomic_add(_prefix_sum_cur, column_sum[i, j])
-    
     for i, j in ti.ndrange(grid_n, grid_n):
+       _column_sum_cur[i,j] = prefix_sum[i, j, 0] = ti.atomic_add(_prefix_sum_cur, column_sum[i, j])
+        #prefix_sum[i, j, 0] = ti.atomic_add(_prefix_sum_cur, column_sum[i, j])
+    
+    """
+    for i, j in ti.ndrange(grid_n, grid_n):
+        #print(i, j ,k)
         for k in range(grid_n):
-            if k == 0:             
-                prefix_sum[i, j, k] += grain_count[i, j, k]
-            else:
-                prefix_sum[i, j, k] = prefix_sum[i, j, k - 1] + grain_count[i, j, k]
-            
-
+            ti.atomic_add(_column_sum_cur[i,j], grain_count[i, j, k])                
             linear_idx = i * grid_n * grid_n + j * grid_n + k
 
-            list_head[linear_idx] = prefix_sum[i, j, k]- grain_count[i, j, k]
+            list_head[linear_idx] = _column_sum_cur[i,j]- grain_count[i, j, k]
             list_cur[linear_idx] = list_head[linear_idx]
-            list_tail[linear_idx] = prefix_sum[i, j, k]
-
+            list_tail[linear_idx] = _column_sum_cur[i,j]
 
     """
-    for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):        
-        _pre = ti.atomic_add(_column_sum_cur[i, j], grain_count[i, j, k])
+    
+
+    #"""
+    for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):
+        #print(i, j ,k)        
+        ti.atomic_add(_column_sum_cur[i,j], grain_count[i, j, k])    
+
         linear_idx = i * grid_n * grid_n + j * grid_n + k
-        list_head[linear_idx] = _pre
+
+        list_head[linear_idx] = _column_sum_cur[i,j]- grain_count[i, j, k]
         list_cur[linear_idx] = list_head[linear_idx]
-        list_tail[linear_idx] = _column_sum_cur[i, j]
+        list_tail[linear_idx] = _column_sum_cur[i,j]
+
     # e
-    """
+    #"""
     
     for i in range(n):
         grid_idx = ti.floor(gf[i].p * grid_n, int)
@@ -227,6 +230,8 @@ window = ti.ui.Window('DEM', (window_size, window_size), show_window = True, vsy
 scene = ti.ui.Scene()
 camera = ti.ui.Camera()
 camera.position(1.25, 0.5, 1.25)
+#camera.position(0.5, 0.5, 0.5)
+
 camera.up(0.0, 0.5, 0.0)
 camera.lookat(-0.5, 0.0, 0.0)
 camera.fov(70)
