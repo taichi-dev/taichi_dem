@@ -42,3 +42,10 @@ There are plenty of room for hacking! We suggest a few of them for you to start 
 
 ## Show your work!
 We encourage you to continue developing on this repo and share your work with our community members. To notify us about your work, make sure you use this repo as a template.
+
+
+# Reference
+
+https://zhuanlan.zhihu.com/p/563182093
+
+https://forum.taichi.graphics/t/topic/2975/2
