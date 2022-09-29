@@ -137,10 +137,9 @@ grain_count = ti.field(dtype=ti.i32,
                        shape=(grid_n, grid_n, grid_n),
                        name="grain_count")
 column_sum = ti.field(dtype=ti.i32, shape=(grid_n, grid_n), name="column_sum")
-prefix_sum = ti.field(dtype=ti.i32, shape=(grid_n, grid_n, grid_n), name="prefix_sum")
+prefix_sum = ti.field(dtype=ti.i32, shape=(grid_n, grid_n), name="prefix_sum")
 particle_id = ti.field(dtype=ti.i32, shape=n, name="particle_id")
 
-_column_sum_cur = ti.field(dtype=ti.i32, shape=(grid_n, grid_n))
 
 @ti.kernel
 def contact(gf: ti.template()):
@@ -165,22 +164,19 @@ def contact(gf: ti.template()):
     _prefix_sum_cur = 0
     
     for i, j in ti.ndrange(grid_n, grid_n):
-       _column_sum_cur[i,j] = prefix_sum[i, j, 0] = ti.atomic_add(_prefix_sum_cur, column_sum[i, j])
+        prefix_sum[i, j] = ti.atomic_add(_prefix_sum_cur, column_sum[i, j])
     
-    #for i, j in ti.ndrange(grid_n, grid_n):
-       #_column_sum_cur[i,j] = prefix_sum[i, j, 0] = ti.atomic_add(_prefix_sum_cur, column_sum[i, j])
-    #   print(i, j, _column_sum_cur[i,j])
     """
     # case 1 ok
     for i, j in ti.ndrange(grid_n, grid_n):
         #print(i, j ,k)
         for k in range(grid_n):
-            ti.atomic_add(_column_sum_cur[i,j], grain_count[i, j, k])                
+            ti.atomic_add(prefix_sum[i,j], grain_count[i, j, k])                
             linear_idx = i * grid_n * grid_n + j * grid_n + k
 
-            list_head[linear_idx] = _column_sum_cur[i,j]- grain_count[i, j, k]
+            list_head[linear_idx] = prefix_sum[i,j]- grain_count[i, j, k]
             list_cur[linear_idx] = list_head[linear_idx]
-            list_tail[linear_idx] = _column_sum_cur[i,j]
+            list_tail[linear_idx] = prefix_sum[i,j]
 
     """
     
@@ -189,11 +185,11 @@ def contact(gf: ti.template()):
     # case 2 wrong
     for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):
         #print(i, j ,k)        
-        ti.atomic_add(_column_sum_cur[i,j], grain_count[i, j, k])    
+        ti.atomic_add(prefix_sum[i,j], grain_count[i, j, k])    
         linear_idx = i * grid_n * grid_n + j * grid_n + k
-        list_head[linear_idx] = _column_sum_cur[i,j]- grain_count[i, j, k]
+        list_head[linear_idx] = prefix_sum[i,j]- grain_count[i, j, k]
         list_cur[linear_idx] = list_head[linear_idx]
-        list_tail[linear_idx] = _column_sum_cur[i,j]
+        list_tail[linear_idx] = prefix_sum[i,j]
 
     """
     
@@ -201,11 +197,11 @@ def contact(gf: ti.template()):
     # case 3 test okay
     for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):
         #print(i, j ,k)   
-        pre = ti.atomic_add(_column_sum_cur[i,j], grain_count[i, j, k])        
+        pre = ti.atomic_add(prefix_sum[i,j], grain_count[i, j, k])        
         linear_idx = i * grid_n * grid_n + j * grid_n + k
         list_head[linear_idx] = pre
         list_cur[linear_idx] = list_head[linear_idx]
-        list_tail[linear_idx] = _column_sum_cur[i,j]
+        list_tail[linear_idx] = prefix_sum[i,j]
         #print( i, j, k, pre)
     #"""
 
