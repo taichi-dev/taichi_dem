@@ -9,7 +9,7 @@ vec = ti.math.vec3
 SAVE_FRAMES = False
 
 window_size = 1024  # Number of pixels of the window
-n = 9000  # Number of grains
+n = 9000 * 3  # Number of grains
 
 density = 100.0
 stiffness = 8e3
@@ -156,6 +156,7 @@ def contact(gf: ti.template()):
         grid_idx = ti.floor(gf[i].p * grid_n, int)
         grain_count[grid_idx] += 1
     
+    column_sum.fill(0)
     # kernel comunicate with global variable ???? this is a bit amazing 
     for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):        
         ti.atomic_add(column_sum[i, j], grain_count[i, j, k])
@@ -195,17 +196,19 @@ def contact(gf: ti.template()):
     
     #"""
     # case 3 test okay
-    for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):
-        #print(i, j ,k)   
+    for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):        
+        # we cannot visit prefix_sum[i,j] in this loop
         pre = ti.atomic_add(prefix_sum[i,j], grain_count[i, j, k])        
         linear_idx = i * grid_n * grid_n + j * grid_n + k
         list_head[linear_idx] = pre
         list_cur[linear_idx] = list_head[linear_idx]
-        list_tail[linear_idx] = prefix_sum[i,j]
-        #print( i, j, k, pre)
+        # only pre pointer is useable
+        list_tail[linear_idx] = pre + grain_count[i, j, k]       
     #"""
 
-    
+    for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):
+        linear_idx = i * grid_n * grid_n + j * grid_n + k   
+        
     # e
 
     for i in range(n):
