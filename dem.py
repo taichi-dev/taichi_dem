@@ -8,7 +8,7 @@ vec = ti.math.vec2
 SAVE_FRAMES = False
 
 window_size = 1024  # Number of pixels of the window
-n = 8192  # Number of grains
+n = 9000  # Number of grains
 
 density = 100.0
 stiffness = 8e3
@@ -187,12 +187,17 @@ def contact(gf: ti.template()):
 
         for neigh_i in range(x_begin, x_end):
             for neigh_j in range(y_begin, y_end):
-                neigh_linear_idx = neigh_i * grid_n + neigh_j
-                for p_idx in range(list_head[neigh_linear_idx],
-                                   list_tail[neigh_linear_idx]):
-                    j = particle_id[p_idx]
-                    if i < j:
-                        resolve(i, j)
+                #if (neigh_j + neigh_i <= grid_idx[0] + grid_idx[1]): # ok 6
+                if (neigh_i <= grid_idx[0] and neigh_j >= grid_idx[1]) or (neigh_i < grid_idx[0] and neigh_j < grid_idx[1]):  # ok  5
+                #if (neigh_i < grid_idx[0] or neigh_j > grid_idx[1] or (neigh_i == grid_idx[0] and neigh_j == grid_idx[1])): # ok 6
+                #if (neigh_i < grid_idx[0] or (neigh_i == grid_idx[0] and neigh_j == grid_idx[1])):                    
+                    neigh_linear_idx = neigh_i * grid_n + neigh_j
+                    for p_idx in range(list_head[neigh_linear_idx],
+                                    list_tail[neigh_linear_idx]):
+                        j = particle_id[p_idx]
+                        if i != j:
+                        #if i > j:
+                            resolve(i, j)
 
 
 init()

@@ -9,7 +9,7 @@ vec = ti.math.vec3
 SAVE_FRAMES = False
 
 window_size = 1024  # Number of pixels of the window
-n = 9000 * 3  # Number of grains
+n = 9000   # Number of grains
 
 density = 100.0
 stiffness = 8e3
@@ -60,7 +60,7 @@ def init():
         #pos = vec(l // region_width * grid_size, h * grid_size * 2, l % region_width + padding + grid_size * ti.random() * 0.2)
 
         #  all random 
-        pos = vec(0.3 + ti.random() * 0.5,  ti.random() * 0.5, ti.random() * 0.5)
+        pos = vec(0 + ti.random() * 1,  ti.random() * 1, ti.random() * 1)
 
         gf[i].p = pos
         #gf[i].r = ti.random() * (grain_r_max - grain_r_min) + grain_r_min
@@ -167,23 +167,9 @@ def contact(gf: ti.template()):
     for i, j in ti.ndrange(grid_n, grid_n):
         prefix_sum[i, j] = ti.atomic_add(_prefix_sum_cur, column_sum[i, j])
     
+        
     """
-    # case 1 ok
-    for i, j in ti.ndrange(grid_n, grid_n):
-        #print(i, j ,k)
-        for k in range(grid_n):
-            ti.atomic_add(prefix_sum[i,j], grain_count[i, j, k])                
-            linear_idx = i * grid_n * grid_n + j * grid_n + k
-
-            list_head[linear_idx] = prefix_sum[i,j]- grain_count[i, j, k]
-            list_cur[linear_idx] = list_head[linear_idx]
-            list_tail[linear_idx] = prefix_sum[i,j]
-
-    """
-    
-
-    """
-    # case 2 wrong
+    # case 1 wrong
     for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):
         #print(i, j ,k)        
         ti.atomic_add(prefix_sum[i,j], grain_count[i, j, k])    
@@ -195,7 +181,7 @@ def contact(gf: ti.template()):
     """
     
     #"""
-    # case 3 test okay
+    # case 2 test okay
     for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):        
         # we cannot visit prefix_sum[i,j] in this loop
         pre = ti.atomic_add(prefix_sum[i,j], grain_count[i, j, k])        
@@ -231,11 +217,14 @@ def contact(gf: ti.template()):
         z_end = min(grid_idx[2] + 2, grid_n)
         # todo still serialize
         for neigh_i, neigh_j, neigh_k in ti.ndrange((x_begin,x_end),(y_begin,y_end),(z_begin,z_end)):
+            # still need improve
+            if ((neigh_i + neigh_j + neigh_k) > (grid_idx[0] + grid_idx[1] + grid_idx[2])): 
+                continue
             neigh_linear_idx = neigh_i * grid_n * grid_n + neigh_j * grid_n + neigh_k
             for p_idx in range(list_head[neigh_linear_idx],
                             list_tail[neigh_linear_idx]):
                 j = particle_id[p_idx]
-                if i < j:
+                if i != j:
                     resolve(i, j)
 
 
