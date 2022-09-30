@@ -218,7 +218,7 @@ def contact(gf: ti.template()):
         # todo still serialize
         for neigh_i, neigh_j, neigh_k in ti.ndrange((x_begin,x_end),(y_begin,y_end),(z_begin,z_end)):
             # still need improve
-            if ((neigh_i + neigh_j + neigh_k) > (grid_idx[0] + grid_idx[1] + grid_idx[2])): 
+            if ((neigh_i + neigh_j + neigh_k) > (grid_idx[0] + grid_idx[1] + grid_idx[2]) and neigh_i <=  grid_idx[0]): 
                 continue
             neigh_linear_idx = neigh_i * grid_n * grid_n + neigh_j * grid_n + neigh_k
             for p_idx in range(list_head[neigh_linear_idx],

@@ -188,9 +188,10 @@ def contact(gf: ti.template()):
         for neigh_i in range(x_begin, x_end):
             for neigh_j in range(y_begin, y_end):
                 #if (neigh_j + neigh_i <= grid_idx[0] + grid_idx[1]): # ok 6
-                if (neigh_i <= grid_idx[0] and neigh_j >= grid_idx[1]) or (neigh_i < grid_idx[0] and neigh_j < grid_idx[1]):  # ok  5
+                #if (neigh_i <= grid_idx[0] and neigh_j >= grid_idx[1]) or (neigh_i < grid_idx[0] and neigh_j < grid_idx[1]):  # ok  5
                 #if (neigh_i < grid_idx[0] or neigh_j > grid_idx[1] or (neigh_i == grid_idx[0] and neigh_j == grid_idx[1])): # ok 6
-                #if (neigh_i < grid_idx[0] or (neigh_i == grid_idx[0] and neigh_j == grid_idx[1])):                    
+                #if (neigh_i < grid_idx[0] or (neigh_i == grid_idx[0] and neigh_j == grid_idx[1])):           
+                if (neigh_j + neigh_i <= grid_idx[0] + grid_idx[1]) and neigh_i <=  grid_idx[0]:       # ok 5   
                     neigh_linear_idx = neigh_i * grid_n + neigh_j
                     for p_idx in range(list_head[neigh_linear_idx],
                                     list_tail[neigh_linear_idx]):
