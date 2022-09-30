@@ -39,7 +39,7 @@ print(f"Grid size: {grid_n}x{grid_n}")
 grain_r_min = 0.002
 grain_r_max = 0.003
 """
-grain_r = 0.005
+grain_r = 0.003
 assert grain_r * 2 < grid_size
 
 region_height = n / 10
@@ -142,18 +142,25 @@ particle_id = ti.field(dtype=ti.i32, shape=n, name="particle_id")
 
 
 @ti.kernel
-def contact(gf: ti.template()):
+def contact(gf: ti.template(), step: int):
     '''
     Handle the collision between grains.
     '''
     for i in gf:
         gf[i].f = vec(0., gravity * gf[i].m, 0)  # Apply gravity.
-        _toCenter = gf[i].p - vec(0.5, 0.5, 0.5)  
-        _rotateforce  = vec(_toCenter[2], 0, -_toCenter[0]).normalized() 
-        _norm = _toCenter.norm()          
-        gf[i].f += -_toCenter.normalized() * (1 - _norm) * gf[i].m * 20
-        gf[i].f += _rotateforce * (1 - _norm) * gf[i].m * 1.5
 
+        # tougong
+        _toCenter = gf[i].p - vec(0.5, 0.5, 0.5)          
+        _norm = _toCenter.norm()          
+        
+        if step > 500:
+            if _norm < 0.1:
+                gf[i].f += _toCenter.normalized() * (1 - _norm) * gf[i].m * 1000
+        else: 
+            _rotateforce  = vec(_toCenter[2], 0, -_toCenter[0]).normalized() 
+            gf[i].f += -_toCenter.normalized() * (1 - _norm) * gf[i].m * 30
+            gf[i].f += _rotateforce * (0.5 - abs(0.5 - gf[i].p[1])) * gf[i].m * 5
+        
     grain_count.fill(0)
 
     for i in range(n):
@@ -256,12 +263,12 @@ while window.running:
     for s in range(substeps):
         update()
         apply_bc()
-        contact(gf)    
+        contact(gf, step)    
     
     camera.track_user_inputs(window, movement_speed=movement_speed, hold_key=ti.ui.LMB)
     scene.set_camera(camera)
 
-    scene.point_light((5.0, 5.0, 5.0), color=(5.0, 5.0, 5.0))
+    scene.point_light((5.0, 5.0, 5.0), color=(5.0, 5.0, 1.0))
 
     pos = gf.p
 
