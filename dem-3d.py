@@ -9,7 +9,7 @@ vec = ti.math.vec3
 SAVE_FRAMES = False
 
 window_size = 1024  # Number of pixels of the window
-n = 9000   # Number of grains
+n = 9000 * 2  # Number of grains
 
 density = 100.0
 stiffness = 8e3
@@ -148,7 +148,11 @@ def contact(gf: ti.template()):
     '''
     for i in gf:
         gf[i].f = vec(0., gravity * gf[i].m, 0)  # Apply gravity.
-        #if 
+        _toCenter = gf[i].p - vec(0.5, 0.5, 0.5)  
+        _rotateforce  = vec(_toCenter[2], 0, -_toCenter[0]).normalized() 
+        _norm = _toCenter.norm()          
+        gf[i].f += -_toCenter.normalized() * (1 - _norm) * gf[i].m * 20
+        gf[i].f += _rotateforce * (1 - _norm) * gf[i].m * 1.5
 
     grain_count.fill(0)
 
