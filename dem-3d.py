@@ -224,6 +224,7 @@ def contact(gf: ti.template()):
             for p_idx in range(list_head[neigh_linear_idx],
                             list_tail[neigh_linear_idx]):
                 j = particle_id[p_idx]
+                # if grid is neg shall i < j
                 if i != j:
                     resolve(i, j)
 
