@@ -2,7 +2,7 @@ import taichi as ti
 import math
 import os
 
-ti.init(arch=ti.cpu)
+ti.init(arch=ti.gpu)
 vec = ti.math.vec3
 
 SAVE_FRAMES = False
@@ -253,11 +253,11 @@ init()
 window = ti.ui.Window('DEM', (window_size, window_size), show_window = True, vsync=False)
 scene = ti.ui.Scene()
 camera = ti.ui.Camera()
-camera.position(1.25, 0.5, 1.25)
+camera.position(1, 0.75, 1)
 #camera.position(0.5, 0.5, 0.5)
 
 camera.up(0.0, 0.5, 0.0)
-camera.lookat(-0.5, 0.0, 0.0)
+camera.lookat(0.0, 0.0, 0.0)
 camera.fov(70)
 scene.set_camera(camera)
 
