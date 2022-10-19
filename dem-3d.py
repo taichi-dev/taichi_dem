@@ -202,11 +202,7 @@ def contact(gf: ti.template(), step: int):
         list_cur[linear_idx] = list_head[linear_idx]
         # only pre pointer is useable
         list_tail[linear_idx] = pre + grain_count[i, j, k]       
-    #"""
-
-    for i, j, k in ti.ndrange(grid_n, grid_n, grid_n):
-        linear_idx = i * grid_n * grid_n + j * grid_n + k   
-        
+    #"""        
     # e
 
     for i in range(n):
@@ -287,8 +283,8 @@ while window.running:
     canvas.scene(scene)
 
 
-    if step % 5 == 0:
-        window.save_image(f"outputs/{step:06}.png")
+    #if step % 5 == 0:
+    #    window.save_image(f"outputs/{step:06}.png")
 
     window.show()
 
