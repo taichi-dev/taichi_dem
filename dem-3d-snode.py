@@ -122,7 +122,7 @@ def resolve(i, j):
         gf[i].f += f2 - f1
         gf[j].f -= f2 - f1
 
-
+# only 35fps on 3090
 grid_particles_list = ti.field(ti.i32)
 grid_block = ti.root.dense(ti.ijk, (grid_n, grid_n, grid_n))
 partical_array = grid_block.dynamic(ti.l, n)
@@ -233,8 +233,8 @@ while window.running:
     canvas.scene(scene)
 
 
-    #if step % 5 == 0:
-    #    window.save_image(f"outputs/{step:06}.png")
+    if step % 5 == 0 and SAVE_FRAMES:
+        window.save_image(f"outputs/{step:06}.png")
 
     window.show()
 

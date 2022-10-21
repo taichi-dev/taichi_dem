@@ -5,6 +5,8 @@ import os
 _fp = ti.f32
 ti.init(arch=ti.gpu) 
 
+SAVE_FRAMES = False
+
 vec3f = ti.types.vector(3, _fp)
 gravity = vec3f(0, -9.8, 0)
 dt = 0.01
@@ -60,7 +62,7 @@ def tougong(i:int, sdt: float, step: int):
         if _norm < 0.1:
             vel[i] += _toCenter.normalized() * (1 - _norm) * 1000
             
-    if 500 > step > 100: 
+    if 400 > step > 100: 
         _rotateforce  = vec3f(_toCenter[2], 0, -_toCenter[0]).normalized() 
         vel[i] += -_toCenter.normalized() * (1 - _norm)  * 50 * sdt
         vel[i] += _rotateforce * (0.5 - abs(0.5 - pos[i][1])) * 5 * sdt
@@ -280,4 +282,11 @@ while window.running:
 
     canvas.scene(scene)
     window.show()
+
+    if step % 5 == 0 and SAVE_FRAMES:
+        window.save_image(f"outputs/{step:06}.png")
+
+    if step > 600:
+        break
+    
     step +=1 
