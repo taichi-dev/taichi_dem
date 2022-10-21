@@ -283,8 +283,8 @@ while window.running:
     canvas.scene(scene)
 
 
-    #if step % 5 == 0:
-    #    window.save_image(f"outputs/{step:06}.png")
+    if step % 5 == 0 and SAVE_FRAMES:
+        window.save_image(f"outputs/{step:06}.png")
 
     window.show()
 

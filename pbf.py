@@ -270,7 +270,7 @@ scene.point_light(pos=(0.5, 1.5, 1.5), color=(1, 1, 1))
 step = 0
 init()
 while window.running:
-    ti.deactivate_all_snodes()  
+    
     camera.track_user_inputs(window, movement_speed=0.05, hold_key=ti.ui.RMB)
  
     scene.set_camera(camera)
@@ -281,12 +281,13 @@ while window.running:
     scene.particles(pos, color = (0, 1, 1), radius = particleRadius)
 
     canvas.scene(scene)
-    window.show()
-
+    
     if step % 5 == 0 and SAVE_FRAMES:
         window.save_image(f"outputs/{step:06}.png")
 
     if step > 600:
         break
     
+    window.show()
+
     step +=1 
